@@ -5,7 +5,6 @@ Works with a chat model with tool calling support.
 
 from datetime import datetime, timezone
 from typing import Dict, List, Literal, cast
-import re
 
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableConfig
@@ -44,34 +43,6 @@ async def call_model(
         system_time=datetime.now(tz=timezone.utc).isoformat()
     )
 
-    # Analiza ostatniej wiadomości użytkownika
-    last_user_message = next(
-        (msg.content for msg in reversed(state.messages) if msg.type == "human"),
-        ""
-    )
-    
-    # Automatyczne wywołanie book_meeting tylko gdy wykryjemy pełne dane
-    time_pattern = r"\b(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})\b"
-    time_match = re.search(time_pattern, last_user_message)
-    
-    if time_match and "spotkanie" in last_user_message.lower():
-        extracted_time = time_match.group(1)
-        return {
-            "messages": [
-                AIMessage(
-                    content="",
-                    tool_calls=[{
-                        "name": "book_meeting",
-                        "args": {
-                            "start_time": extracted_time,
-                            "duration": 60,  # Domyślny czas, można dynamicznie zmieniać
-                            "title": "Spotkanie z użytkownikiem"
-                        }
-                    }]
-                )
-            ]
-        }
-    
     # Get the model's response
     response = cast(
         AIMessage,
@@ -124,17 +95,10 @@ def route_model_output(state: State) -> Literal["__end__", "tools"]:
     if not isinstance(last_message, AIMessage):
         raise ValueError("Nieprawidłowy typ wiadomości")
     
-    # Sprawdź potwierdzenia użytkownika
-    if last_message.content:
-        content = last_message.content.lower()
-        if any(kw in content for kw in ["potwierdzam", "zgoda", "tak", "ok"]):
-            if state.pending_confirmation:
-                return "tools"
-        elif any(kw in content for kw in ["anuluj", "stop", "nie"]):
-            state.pending_confirmation = None
-            return "__end__"
+    # Sprawdź czy potrzebna jest dodatkowa interakcja
+    if last_message.content and any(keyword in last_message.content.lower() for keyword in ["potwierdzam", "zgoda", "tak"]):
+        return "tools"
     
-    # Sprawdź wywołania narzędzi
     return "__end__" if not last_message.tool_calls else "tools"
 
 

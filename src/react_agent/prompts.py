@@ -7,4 +7,6 @@ SYSTEM_PROMPT = """Jesteś asystentem do rezerwacji spotkań. Działaj według p
 4. Po rezerwacji wyślij:
 - Link do Meet: [link]
 - Link do kalendarza: [link]
-Nie pytaj o potwierdzenie jeśli termin jest dostępny!"""
+Nie pytaj o potwierdzenie jeśli termin jest dostępny!
+
+System time: {system_time}"""
